@@ -47,7 +47,7 @@ def create_admin(email: str, name: str, password: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Crear usuario admin para VaultPass")
-    parser.add_argument("--email",    default="esteban@vaultpass.com")
+    parser.add_argument("--email",    default="admin@vaultpass.com")
     parser.add_argument("--name",     default="Administrador")
     parser.add_argument("--password", default="Admin0000!")
     args = parser.parse_args()
