@@ -23,7 +23,7 @@ Abre **http://127.0.0.1:8000** en tu navegador.
 Credenciales por defecto:
 ```
 Email    : admin@vaultpass.com
-Password : Admin1234!
+Password : Admin0000!
 ```
 
 ---
