@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VaultPass — Dashboard</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🔐</div>
+      <div class="logo-text">Vault<span>Pass</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-section-label">Menú</span>
+      <a href="./dashboard.html" class="nav-item active" data-dashboard-link>
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a href="./vault.html" class="nav-item" data-vault-link>
+        <span class="nav-icon">🔑</span> Mi Vault
+      </a>
+      <button class="nav-item" id="btn-open-gen">
+        <span class="nav-icon">⚙️</span> Generador
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">A</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-name">Usuario</div>
+          <div class="user-email" id="sidebar-email">—</div>
+        </div>
+        <button class="btn-logout" id="btn-logout" title="Cerrar sesión">↩</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div>
+      <div class="header-title">Dashboard</div>
+      <div class="header-subtitle" id="greeting">Bienvenido de vuelta</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <a href="./vault.html" class="btn btn-primary" data-vault-link>+ Nueva contraseña</a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="app-main">
+    <div id="loading" class="page-loader">
+      <span class="spinner"></span> Cargando...
+    </div>
+
+    <div id="content" style="display:none">
+      <!-- Stats -->
+      <div class="stats-grid stagger" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">🔑</div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Contraseñas guardadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-value" id="stat-fav">0</div>
+          <div class="stat-label">Favoritos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📂</div>
+          <div class="stat-value" id="stat-cats">0</div>
+          <div class="stat-label">Categorías</div>
+        </div>
+      </div>
+
+      <!-- Grid: recent + categories -->
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start" id="main-grid">
+        <!-- Recent items -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Accesos recientes</h3>
+            <a href="./vault.html" class="btn btn-ghost btn-sm" data-vault-link>Ver todos →</a>
+          </div>
+          <div id="recent-list" class="vault-list"></div>
+        </div>
+
+        <!-- Categories breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Por categoría</h3>
+          </div>
+          <div id="cats-list" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Generator Modal -->
+<div class="modal-overlay" id="gen-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 class="modal-title">⚙️ Generador de Contraseñas</h3>
+      <button class="btn-close" id="gen-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="gen-output" id="gen-output">—</div>
+      <div class="range-row">
+        <span>Longitud:</span>
+        <input type="range" id="gen-len" min="6" max="64" value="16" />
+        <span class="range-val" id="gen-len-val">16</span>
+      </div>
+      <div class="gen-options">
+        <label class="gen-option"><input type="checkbox" id="gen-upper" checked /> Mayúsculas</label>
+        <label class="gen-option"><input type="checkbox" id="gen-lower" checked /> Minúsculas</label>
+        <label class="gen-option"><input type="checkbox" id="gen-num" checked /> Números</label>
+        <label class="gen-option"><input type="checkbox" id="gen-sym" checked /> Símbolos</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="gen-copy">📋 Copiar</button>
+      <button class="btn btn-primary" id="gen-regen">↻ Generar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, getCurrentUser, logout, apiGetDashboard, APP_ROUTES } from '../js/api.js';
+  import { generatePassword, copyToClipboard, toast, formatDate, getFavicon, CATEGORIES } from '../js/utils.js';
+
+  requireAuth();
+
+  // User info
+  const user = getCurrentUser();
+  document.getElementById('sidebar-name').textContent = user.name || 'Usuario';
+  document.getElementById('sidebar-email').textContent = user.email || '';
+  document.getElementById('sidebar-avatar').textContent = (user.name || 'U')[0].toUpperCase();
+  document.getElementById('greeting').textContent = `Hola, ${user.name?.split(' ')[0] || 'Usuario'} 👋`;
+
+  document.querySelectorAll('[data-vault-link]').forEach(el => el.setAttribute('href', APP_ROUTES.vault));
+  const dashLink = document.querySelector('[data-dashboard-link]');
+  if (dashLink) dashLink.setAttribute('href', APP_ROUTES.dashboard);
+  document.getElementById('btn-logout').addEventListener('click', logout);
+
+  // Load dashboard
+  async function loadDashboard() {
+    try {
+      const data = await apiGetDashboard();
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      document.getElementById('stat-total').textContent = data.total_items;
+      document.getElementById('stat-fav').textContent = data.total_favorites;
+      document.getElementById('stat-cats').textContent = Object.keys(data.categories).length;
+
+      // Recent items
+      const recentList = document.getElementById('recent-list');
+      if (!data.recent_items.length) {
+        recentList.innerHTML = `<div class="empty-state"><div class="empty-icon">🔑</div><h3>Sin contraseñas aún</h3><p>Agrega tu primera contraseña en Mi Vault.</p></div>`;
+      } else {
+        recentList.innerHTML = data.recent_items.map(item => {
+          const favicon = getFavicon(item.website);
+          const icon = favicon ? `<img src="${favicon}" onerror="this.style.display='none';this.nextSibling.style.display='block'" /><span style="display:none">🔑</span>` : '🔑';
+          return `
+          <div class="vault-item" onclick="window.location.href='${APP_ROUTES.vault}?id=${item.id}'">
+            <div class="vault-item-favicon">${favicon ? `<img src="${favicon}" onerror="this.outerHTML='🔑'">` : '🔑'}</div>
+            <div class="vault-item-info">
+              <div class="vault-item-title">${escHtml(item.title)} ${item.is_favorite ? '<span class="favorite-star">⭐</span>' : ''}</div>
+              <div class="vault-item-sub">${escHtml(item.username || item.website || '—')}</div>
+            </div>
+            <span class="category-badge">${escHtml(item.category)}</span>
+          </div>`;
+        }).join('');
+      }
+
+      // Categories
+      const catsList = document.getElementById('cats-list');
+      const cats = Object.entries(data.categories).sort((a,b) => b[1]-a[1]);
+      const total = data.total_items || 1;
+      catsList.innerHTML = cats.map(([cat, count]) => `
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
+            <span>${escHtml(cat)}</span><span style="color:var(--text-3)">${count}</span>
+          </div>
+          <div class="strength-bar">
+            <div class="strength-fill" style="width:${(count/total*100).toFixed(1)}%;background:var(--accent)"></div>
+          </div>
+        </div>
+      `).join('') || '<p style="color:var(--text-3);font-size:13px">Sin datos aún.</p>';
+
+    } catch (err) {
+      document.getElementById('loading').innerHTML = `<p style="color:var(--danger)">${err.message}</p>`;
+    }
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  loadDashboard();
+
+  // ─── Generator ────────────────────────────────────────────────────────────
+  const genModal = document.getElementById('gen-modal');
+  const genOutput = document.getElementById('gen-output');
+  const genLen = document.getElementById('gen-len');
+  const genLenVal = document.getElementById('gen-len-val');
+
+  function getGenOpts() {
+    return {
+      length: parseInt(genLen.value),
+      uppercase: document.getElementById('gen-upper').checked,
+      lowercase: document.getElementById('gen-lower').checked,
+      numbers: document.getElementById('gen-num').checked,
+      symbols: document.getElementById('gen-sym').checked,
+    };
+  }
+
+  function regen() {
+    const pw = generatePassword(getGenOpts());
+    genOutput.textContent = pw || '(Selecciona al menos una opción)';
+  }
+
+  genLen.addEventListener('input', () => { genLenVal.textContent = genLen.value; regen(); });
+  ['gen-upper','gen-lower','gen-num','gen-sym'].forEach(id => {
+    document.getElementById(id).addEventListener('change', regen);
+  });
+
+  document.getElementById('gen-regen').addEventListener('click', regen);
+  document.getElementById('gen-copy').addEventListener('click', async () => {
+    const pw = genOutput.textContent;
+    if (pw && pw !== '—') {
+      await copyToClipboard(pw);
+      toast('Contraseña copiada al portapapeles');
+    }
+  });
+
+  document.getElementById('btn-open-gen').addEventListener('click', () => {
+    genModal.classList.add('open');
+    regen();
+  });
+  document.getElementById('gen-close').addEventListener('click', () => genModal.classList.remove('open'));
+  genModal.addEventListener('click', e => { if (e.target === genModal) genModal.classList.remove('open'); });
+</script>
+</body>
+</html>

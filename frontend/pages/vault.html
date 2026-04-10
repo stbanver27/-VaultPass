@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VaultPass — Mi Vault</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🔐</div>
+      <div class="logo-text">Vault<span>Pass</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-section-label">Menú</span>
+      <a href="./dashboard.html" class="nav-item" data-dashboard-link>
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a href="./vault.html" class="nav-item active" data-vault-link>
+        <span class="nav-icon">🔑</span> Mi Vault
+      </a>
+      <button class="nav-item" id="btn-open-gen">
+        <span class="nav-icon">⚙️</span> Generador
+      </button>
+      <button class="nav-item" id="btn-export">
+        <span class="nav-icon">📤</span> Exportar JSON
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">A</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-name">Usuario</div>
+          <div class="user-email" id="sidebar-email">—</div>
+        </div>
+        <button class="btn-logout" id="btn-logout" title="Cerrar sesión">↩</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div>
+      <div class="header-title">Mi Vault</div>
+      <div class="header-subtitle">Tus contraseñas cifradas y seguras</div>
+    </div>
+    <button class="btn btn-primary" id="btn-new">+ Nueva contraseña</button>
+  </header>
+
+  <!-- Main -->
+  <main class="app-main">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" class="form-control" placeholder="Buscar por título..." />
+      </div>
+      <select id="cat-filter" class="form-control" style="width:auto;min-width:160px">
+        <option value="">Todas las categorías</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" id="btn-favorites" title="Solo favoritos">⭐ Favoritos</button>
+    </div>
+
+    <!-- List -->
+    <div id="vault-list" class="vault-list">
+      <div class="page-loader"><span class="spinner"></span> Cargando...</div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══ Item Modal (Create / Edit) ═══════════════════════════════════════ -->
+<div class="modal-overlay" id="item-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-title">Nueva contraseña</h3>
+      <button class="btn-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Título *</label>
+          <input type="text" id="f-title" class="form-control" placeholder="Ej: Gmail Personal" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sitio web</label>
+          <input type="url" id="f-website" class="form-control" placeholder="https://gmail.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Usuario / Email</label>
+          <input type="text" id="f-username" class="form-control" placeholder="usuario@ejemplo.com" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Contraseña *</label>
+        <div class="input-group">
+          <input type="password" id="f-password" class="form-control" placeholder="••••••••••••" />
+          <button type="button" class="input-group-btn" id="toggle-pw">👁</button>
+        </div>
+        <div class="strength-bar"><div class="strength-fill" id="strength-fill" style="width:0"></div></div>
+        <div class="strength-label" id="strength-label"></div>
+      </div>
+
+      <!-- Inline Generator -->
+      <div class="gen-panel" id="gen-panel" style="display:none">
+        <div class="gen-output" id="gen-preview">—</div>
+        <div class="range-row">
+          <span>Longitud:</span>
+          <input type="range" id="gen-len" min="6" max="64" value="16" />
+          <span class="range-val" id="gen-len-val">16</span>
+        </div>
+        <div class="gen-options">
+          <label class="gen-option"><input type="checkbox" id="gen-upper" checked /> Mayúsc.</label>
+          <label class="gen-option"><input type="checkbox" id="gen-lower" checked /> Minúsc.</label>
+          <label class="gen-option"><input type="checkbox" id="gen-num" checked /> Números</label>
+          <label class="gen-option"><input type="checkbox" id="gen-sym" checked /> Símbolos</label>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" id="gen-regen">↻ Regenerar</button>
+          <button class="btn btn-primary btn-sm" id="gen-use">✓ Usar esta</button>
+        </div>
+      </div>
+
+      <button class="btn btn-ghost btn-sm" id="btn-toggle-gen" style="margin-bottom:16px">
+        ⚙️ Generador de contraseñas
+      </button>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Categoría</label>
+          <select id="f-category" class="form-control"></select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <label class="gen-option" style="padding-bottom:10px">
+            <input type="checkbox" id="f-favorite" /> Marcar como favorito ⭐
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notas (cifradas)</label>
+        <textarea id="f-notes" class="form-control" placeholder="Información adicional..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="modal-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="modal-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Detail Modal ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="detail-title">—</h3>
+      <button class="btn-close" id="detail-close">✕</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="detail-delete">🗑 Eliminar</button>
+      <button class="btn btn-secondary" id="detail-edit">✏️ Editar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Generator Standalone Modal ═══════════════════════════════════════ -->
+<div class="modal-overlay" id="gen-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 class="modal-title">⚙️ Generador de Contraseñas</h3>
+      <button class="btn-close" id="gen-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="gen-output" id="gen-modal-output">—</div>
+      <div class="range-row">
+        <span>Longitud:</span>
+        <input type="range" id="gen-modal-len" min="6" max="64" value="16" />
+        <span class="range-val" id="gen-modal-len-val">16</span>
+      </div>
+      <div class="gen-options">
+        <label class="gen-option"><input type="checkbox" id="gen-modal-upper" checked /> Mayúsculas</label>
+        <label class="gen-option"><input type="checkbox" id="gen-modal-lower" checked /> Minúsculas</label>
+        <label class="gen-option"><input type="checkbox" id="gen-modal-num" checked /> Números</label>
+        <label class="gen-option"><input type="checkbox" id="gen-modal-sym" checked /> Símbolos</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="gen-modal-copy">📋 Copiar</button>
+      <button class="btn btn-primary" id="gen-modal-regen">↻ Generar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, getCurrentUser, logout, apiListItems, apiGetItem, apiCreateItem, apiUpdateItem, apiDeleteItem, apiExport, APP_ROUTES } from '../js/api.js';
+  import { generatePassword, passwordStrength, copyToClipboard, toast, formatDate, getFavicon, CATEGORIES } from '../js/utils.js';
+
+  requireAuth();
+
+  const user = getCurrentUser();
+  document.getElementById('sidebar-name').textContent = user.name || 'Usuario';
+  document.getElementById('sidebar-email').textContent = user.email || '';
+  document.getElementById('sidebar-avatar').textContent = (user.name || 'U')[0].toUpperCase();
+  const dashLink = document.querySelector('[data-dashboard-link]');
+  if (dashLink) dashLink.setAttribute('href', APP_ROUTES.dashboard);
+  document.querySelectorAll('[data-vault-link]').forEach(el => el.setAttribute('href', APP_ROUTES.vault));
+  document.getElementById('btn-logout').addEventListener('click', logout);
+
+  // ─── Populate categories ────────────────────────────────────────────────
+  const catFilter = document.getElementById('cat-filter');
+  const fCat = document.getElementById('f-category');
+  CATEGORIES.forEach(c => {
+    catFilter.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
+    fCat.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
+  });
+
+  // ─── State ──────────────────────────────────────────────────────────────
+  let items = [];
+  let editingId = null;
+  let detailItem = null;
+  let favOnly = false;
+
+  function escHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ─── Load & Render ──────────────────────────────────────────────────────
+  async function loadItems() {
+    const search = document.getElementById('search-input').value.trim();
+    const category = catFilter.value;
+    try {
+      items = await apiListItems({ search, category, favorites: favOnly });
+      renderList();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  function renderList() {
+    const list = document.getElementById('vault-list');
+    if (!items.length) {
+      list.innerHTML = `<div class="empty-state animate-in">
+        <div class="empty-icon">🔐</div>
+        <h3>Sin resultados</h3>
+        <p>Agrega tu primera contraseña o ajusta los filtros.</p>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = items.map(item => {
+      const favicon = getFavicon(item.website);
+      const faviconHtml = favicon
+        ? `<img src="${favicon}" width="24" height="24" onerror="this.style.display='none'">`
+        : '🔑';
+      return `
+      <div class="vault-item animate-in" data-id="${item.id}">
+        <div class="vault-item-favicon">${faviconHtml}</div>
+        <div class="vault-item-info">
+          <div class="vault-item-title">
+            ${escHtml(item.title)}
+            ${item.is_favorite ? '<span class="favorite-star">⭐</span>' : ''}
+          </div>
+          <div class="vault-item-sub">${escHtml(item.username || item.website || '—')}</div>
+        </div>
+        <span class="category-badge">${escHtml(item.category)}</span>
+        <div class="vault-item-actions">
+          <button class="btn btn-ghost btn-icon btn-sm" title="Copiar contraseña" data-copy="${item.id}">📋</button>
+          <button class="btn btn-ghost btn-icon btn-sm" title="Editar" data-edit="${item.id}">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" title="Eliminar" data-del="${item.id}" style="color:var(--danger)">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Events on list
+    list.querySelectorAll('.vault-item').forEach(el => {
+      el.addEventListener('click', async (e) => {
+        if (e.target.closest('[data-copy],[data-edit],[data-del]')) return;
+        await openDetail(parseInt(el.dataset.id));
+      });
+    });
+
+    list.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.copy);
+        try {
+          const full = await apiGetItem(id);
+          await copyToClipboard(full.password);
+          toast('Contraseña copiada ✓');
+        } catch(err) { toast(err.message, 'error'); }
+      });
+    });
+
+    list.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEdit(parseInt(btn.dataset.edit));
+      });
+    });
+
+    list.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirmDelete(parseInt(btn.dataset.del));
+      });
+    });
+  }
+
+  // ─── Detail Modal ────────────────────────────────────────────────────────
+  async function openDetail(id) {
+    try {
+      detailItem = await apiGetItem(id);
+      document.getElementById('detail-title').textContent = detailItem.title;
+
+      const body = document.getElementById('detail-body');
+      body.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${row('🌐 Sitio', detailItem.website ? `<a href="${escHtml(detailItem.website)}" target="_blank">${escHtml(detailItem.website)}</a>` : '—')}
+          ${row('👤 Usuario', detailItem.username || '—')}
+          <div>
+            <div class="form-label">🔑 Contraseña</div>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg-3);padding:10px 12px;border-radius:8px;border:1px solid var(--border)">
+              <span id="pw-display" class="mono" style="flex:1;letter-spacing:2px">••••••••••</span>
+              <button class="btn btn-ghost btn-icon btn-sm" id="pw-toggle">👁</button>
+              <button class="btn btn-ghost btn-icon btn-sm" id="pw-copy">📋</button>
+            </div>
+          </div>
+          ${row('📂 Categoría', detailItem.category)}
+          ${detailItem.notes ? row('📝 Notas', escHtml(detailItem.notes)) : ''}
+          <div style="display:flex;gap:16px;font-size:12px;color:var(--text-3);margin-top:8px">
+            <span>Creado: ${formatDate(detailItem.created_at)}</span>
+            <span>Actualizado: ${formatDate(detailItem.updated_at)}</span>
+          </div>
+        </div>`;
+
+      let pwVisible = false;
+      document.getElementById('pw-toggle').addEventListener('click', () => {
+        pwVisible = !pwVisible;
+        document.getElementById('pw-display').textContent = pwVisible ? detailItem.password : '••••••••••';
+        document.getElementById('pw-toggle').textContent = pwVisible ? '🙈' : '👁';
+      });
+
+      document.getElementById('pw-copy').addEventListener('click', async () => {
+        await copyToClipboard(detailItem.password);
+        toast('Contraseña copiada ✓');
+      });
+
+      document.getElementById('detail-modal').classList.add('open');
+    } catch(err) { toast(err.message, 'error'); }
+  }
+
+  function row(label, value) {
+    return `<div><div class="form-label">${label}</div><div style="font-size:14px">${value}</div></div>`;
+  }
+
+  document.getElementById('detail-close').addEventListener('click', () => {
+    document.getElementById('detail-modal').classList.remove('open');
+  });
+  document.getElementById('detail-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('detail-modal'))
+      document.getElementById('detail-modal').classList.remove('open');
+  });
+
+  document.getElementById('detail-edit').addEventListener('click', () => {
+    document.getElementById('detail-modal').classList.remove('open');
+    if (detailItem) openEdit(detailItem.id);
+  });
+
+  document.getElementById('detail-delete').addEventListener('click', () => {
+    document.getElementById('detail-modal').classList.remove('open');
+    if (detailItem) confirmDelete(detailItem.id);
+  });
+
+  // ─── Item Modal (Create/Edit) ─────────────────────────────────────────
+  function openCreate() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = 'Nueva contraseña';
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-website').value = '';
+    document.getElementById('f-username').value = '';
+    document.getElementById('f-password').value = '';
+    document.getElementById('f-category').value = 'General';
+    document.getElementById('f-notes').value = '';
+    document.getElementById('f-favorite').checked = false;
+    updateStrength('');
+    document.getElementById('gen-panel').style.display = 'none';
+    document.getElementById('item-modal').classList.add('open');
+    document.getElementById('f-title').focus();
+  }
+
+  async function openEdit(id) {
+    editingId = id;
+    try {
+      const item = await apiGetItem(id);
+      document.getElementById('modal-title').textContent = 'Editar contraseña';
+      document.getElementById('f-title').value = item.title;
+      document.getElementById('f-website').value = item.website || '';
+      document.getElementById('f-username').value = item.username || '';
+      document.getElementById('f-password').value = item.password;
+      document.getElementById('f-category').value = item.category;
+      document.getElementById('f-notes').value = item.notes || '';
+      document.getElementById('f-favorite').checked = item.is_favorite;
+      updateStrength(item.password);
+      document.getElementById('gen-panel').style.display = 'none';
+      document.getElementById('item-modal').classList.add('open');
+    } catch(err) { toast(err.message, 'error'); }
+  }
+
+  function closeItemModal() {
+    document.getElementById('item-modal').classList.remove('open');
+    editingId = null;
+  }
+
+  document.getElementById('modal-close').addEventListener('click', closeItemModal);
+  document.getElementById('modal-cancel').addEventListener('click', closeItemModal);
+  document.getElementById('item-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('item-modal')) closeItemModal();
+  });
+
+  document.getElementById('btn-new').addEventListener('click', openCreate);
+
+  // Password toggle
+  const togglePw = document.getElementById('toggle-pw');
+  const pwInput = document.getElementById('f-password');
+  togglePw.addEventListener('click', () => {
+    const show = pwInput.type === 'password';
+    pwInput.type = show ? 'text' : 'password';
+    togglePw.textContent = show ? '🙈' : '👁';
+  });
+
+  // Strength indicator
+  function updateStrength(pw) {
+    const s = passwordStrength(pw);
+    document.getElementById('strength-fill').style.width = s.percent + '%';
+    document.getElementById('strength-fill').style.background = s.color;
+    document.getElementById('strength-label').textContent = pw ? s.label : '';
+    document.getElementById('strength-label').style.color = s.color;
+  }
+  pwInput.addEventListener('input', () => updateStrength(pwInput.value));
+
+  // Save
+  document.getElementById('modal-save').addEventListener('click', async () => {
+    const title = document.getElementById('f-title').value.trim();
+    const password = document.getElementById('f-password').value;
+    if (!title || !password) {
+      toast('Título y contraseña son obligatorios', 'error');
+      return;
+    }
+
+    const saveBtn = document.getElementById('modal-save');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span>';
+
+    const payload = {
+      title,
+      website: document.getElementById('f-website').value.trim() || null,
+      username: document.getElementById('f-username').value.trim() || null,
+      password,
+      category: document.getElementById('f-category').value,
+      notes: document.getElementById('f-notes').value.trim() || null,
+      is_favorite: document.getElementById('f-favorite').checked,
+    };
+
+    try {
+      if (editingId) {
+        await apiUpdateItem(editingId, payload);
+        toast('Contraseña actualizada ✓');
+      } else {
+        await apiCreateItem(payload);
+        toast('Contraseña guardada ✓');
+      }
+      closeItemModal();
+      await loadItems();
+    } catch(err) {
+      toast(err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Guardar';
+    }
+  });
+
+  // ─── Delete ───────────────────────────────────────────────────────────
+  async function confirmDelete(id) {
+    const item = items.find(i => i.id === id);
+    if (!confirm(`¿Eliminar "${item?.title || 'este ítem'}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await apiDeleteItem(id);
+      toast('Eliminado correctamente', 'info');
+      await loadItems();
+    } catch(err) { toast(err.message, 'error'); }
+  }
+
+  // ─── Filters ──────────────────────────────────────────────────────────
+  let searchTimer;
+  document.getElementById('search-input').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadItems, 300);
+  });
+  catFilter.addEventListener('change', loadItems);
+  document.getElementById('btn-favorites').addEventListener('click', () => {
+    favOnly = !favOnly;
+    document.getElementById('btn-favorites').style.background = favOnly ? 'rgba(255,181,69,0.15)' : '';
+    document.getElementById('btn-favorites').style.color = favOnly ? 'var(--warning)' : '';
+    loadItems();
+  });
+
+  // ─── Inline Generator ─────────────────────────────────────────────────
+  const genPanel = document.getElementById('gen-panel');
+  const genPreview = document.getElementById('gen-preview');
+  const genLen = document.getElementById('gen-len');
+  const genLenVal = document.getElementById('gen-len-val');
+
+  function getOpts() {
+    return {
+      length: parseInt(genLen.value),
+      uppercase: document.getElementById('gen-upper').checked,
+      lowercase: document.getElementById('gen-lower').checked,
+      numbers: document.getElementById('gen-num').checked,
+      symbols: document.getElementById('gen-sym').checked,
+    };
+  }
+
+  function regenInline() {
+    const pw = generatePassword(getOpts());
+    genPreview.textContent = pw || '(Selecciona al menos una opción)';
+  }
+
+  document.getElementById('btn-toggle-gen').addEventListener('click', () => {
+    const open = genPanel.style.display === 'none';
+    genPanel.style.display = open ? 'block' : 'none';
+    if (open) regenInline();
+  });
+
+  genLen.addEventListener('input', () => { genLenVal.textContent = genLen.value; regenInline(); });
+  ['gen-upper','gen-lower','gen-num','gen-sym'].forEach(id => {
+    document.getElementById(id).addEventListener('change', regenInline);
+  });
+
+  document.getElementById('gen-regen').addEventListener('click', regenInline);
+  document.getElementById('gen-use').addEventListener('click', () => {
+    const pw = genPreview.textContent;
+    if (pw && !pw.startsWith('(')) {
+      pwInput.value = pw;
+      pwInput.type = 'text';
+      togglePw.textContent = '🙈';
+      updateStrength(pw);
+      genPanel.style.display = 'none';
+      toast('Contraseña aplicada ✓');
+    }
+  });
+
+  // ─── Standalone Generator Modal ───────────────────────────────────────
+  const genModal = document.getElementById('gen-modal');
+  const genModalOutput = document.getElementById('gen-modal-output');
+  const genModalLen = document.getElementById('gen-modal-len');
+  const genModalLenVal = document.getElementById('gen-modal-len-val');
+
+  function getModalOpts() {
+    return {
+      length: parseInt(genModalLen.value),
+      uppercase: document.getElementById('gen-modal-upper').checked,
+      lowercase: document.getElementById('gen-modal-lower').checked,
+      numbers: document.getElementById('gen-modal-num').checked,
+      symbols: document.getElementById('gen-modal-sym').checked,
+    };
+  }
+
+  function regenModal() {
+    genModalOutput.textContent = generatePassword(getModalOpts()) || '(Selecciona opciones)';
+  }
+
+  document.getElementById('btn-open-gen').addEventListener('click', () => {
+    genModal.classList.add('open');
+    regenModal();
+  });
+  document.getElementById('gen-modal-close').addEventListener('click', () => genModal.classList.remove('open'));
+  genModal.addEventListener('click', e => { if (e.target === genModal) genModal.classList.remove('open'); });
+  genModalLen.addEventListener('input', () => { genModalLenVal.textContent = genModalLen.value; regenModal(); });
+  ['gen-modal-upper','gen-modal-lower','gen-modal-num','gen-modal-sym'].forEach(id => {
+    document.getElementById(id).addEventListener('change', regenModal);
+  });
+  document.getElementById('gen-modal-regen').addEventListener('click', regenModal);
+  document.getElementById('gen-modal-copy').addEventListener('click', async () => {
+    await copyToClipboard(genModalOutput.textContent);
+    toast('Copiado al portapapeles ✓');
+  });
+
+  // ─── Export ───────────────────────────────────────────────────────────
+  document.getElementById('btn-export').addEventListener('click', async () => {
+    try {
+      const data = await apiExport();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vaultpass_export_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Vault exportado correctamente ✓');
+    } catch(err) { toast(err.message, 'error'); }
+  });
+
+  // ─── Check for direct open ────────────────────────────────────────────
+  const urlId = new URLSearchParams(location.search).get('id');
+  if (urlId) openDetail(parseInt(urlId));
+
+  // Initial load
+  loadItems();
+</script>
+</body>
+</html>
